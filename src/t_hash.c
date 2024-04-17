@@ -207,7 +207,7 @@ int hashTypeSet(robj *o, sds field, sds value, int flags) {
         if (sdslen(field) > server.hash_max_listpack_value || sdslen(value) > server.hash_max_listpack_value)
             hashTypeConvert(o, OBJ_ENCODING_HT);
     }
-    
+
     if (o->encoding == OBJ_ENCODING_LISTPACK) {
         unsigned char *zl, *fptr, *vptr;
 
@@ -876,6 +876,60 @@ void hvalsCommand(client *c) {
 
 void hgetallCommand(client *c) {
     genericHgetallCommand(c,OBJ_HASH_KEY|OBJ_HASH_VALUE);
+}
+
+void hgetalletagCommand(client *c) {
+    robj *o;
+
+    if ((o = lookupKeyReadOrReply(c,c->argv[1],shared.null[c->resp])) == NULL ||
+        checkType(c,o,OBJ_HASH)) return;
+
+    unsigned char *vstr = NULL;
+    unsigned int vlen = UINT_MAX;
+    long long vll = LLONG_MAX;
+
+    sds etag = sdsnewlen("etag", 4);
+
+    if (hashTypeGetValue(o, etag, &vstr, &vlen, &vll) == C_OK) {
+        if (vstr) {
+            addReplyNull(c);
+        } else {
+            char *endptr;
+            long long input = strtoll(c->argv[2]->ptr, &endptr, 10);
+            if (vll == input) {
+                addReplyMapLen(c, 1);
+                addReplyBulkCBuffer(c, "etag", 4);
+                addReplyBulkLongLong(c, -1);
+            } else {
+                    hashTypeIterator *hi;
+                    int length, count = 0;
+                    int flags = OBJ_HASH_KEY|OBJ_HASH_VALUE;
+                    length = hashTypeLength(o);
+                    if (flags & OBJ_HASH_KEY && flags & OBJ_HASH_VALUE) {
+                        addReplyMapLen(c, length);
+                    } else {
+                        addReplyArrayLen(c, length);
+                    }
+                    hi = hashTypeInitIterator(o);
+                    while (hashTypeNext(hi) != C_ERR) {
+                        if (flags & OBJ_HASH_KEY) {
+                            addHashIteratorCursorToReply(c, hi, OBJ_HASH_KEY);
+                            count++;
+                        }
+                        if (flags & OBJ_HASH_VALUE) {
+                            addHashIteratorCursorToReply(c, hi, OBJ_HASH_VALUE);
+                            count++;
+                        }
+                    }
+
+                    hashTypeReleaseIterator(hi);
+                    if (flags & OBJ_HASH_KEY && flags & OBJ_HASH_VALUE) count /= 2;
+                    serverAssert(count == length);
+            }
+        }
+    } else {
+        addReplyNull(c);
+    }
 }
 
 void hexistsCommand(client *c) {

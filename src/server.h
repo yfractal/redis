@@ -3150,7 +3150,7 @@ sds keyspaceEventsFlagsToString(int flags);
 
 /* Configuration */
 /* Configuration Flags */
-#define MODIFIABLE_CONFIG 0 /* This is the implied default for a standard 
+#define MODIFIABLE_CONFIG 0 /* This is the implied default for a standard
                              * config, which is mutable. */
 #define IMMUTABLE_CONFIG (1ULL<<0) /* Can this value only be set at startup? */
 #define SENSITIVE_CONFIG (1ULL<<1) /* Does this value contain sensitive information */
@@ -3574,6 +3574,7 @@ void zrevrankCommand(client *c);
 void hsetCommand(client *c);
 void hsetnxCommand(client *c);
 void hgetCommand(client *c);
+void hgetalletagCommand(client *c);
 void hmgetCommand(client *c);
 void hdelCommand(client *c);
 void hlenCommand(client *c);
